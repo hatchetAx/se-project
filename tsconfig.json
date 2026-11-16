@@ -1,21 +1,16 @@
 {
+  "name": "functions",
+  "scripts": {
+    "build": "npm run lint && tsc"
+  },
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "jsx": "react",
     "strict": true,
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@/assets/*": [
-        "./assets/*"
-      ]
+      "@/*": ["./src/*"],
+      "@/assets/*": ["./assets/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-  ]
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
 }
