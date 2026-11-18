@@ -60,10 +60,11 @@ export async function updateHistoryResults(
 ): Promise<void> {
   if (!db) return;
   await initializeHistory(db);
+  const keywordKey = toKeywordKey(keywords);
   await db.runAsync(
     "UPDATE searches SET has_results = ? WHERE keyword_key = ?",
     hasResults ? 1 : 0,
-    toKeywordKey(keywords),
+    keywordKey,
   );
 }
 
@@ -73,7 +74,7 @@ export async function getHistory(
   if (!db) return [];
   await initializeHistory(db);
   const rows = await db.getAllAsync<HistoryRow>(
-    "SELECT id, keyword_key, created_at FROM searches ORDER BY created_at DESC",
+    "SELECT id, keyword_key, created_at, has_results FROM searches ORDER BY created_at DESC",
   );
   return rows.map(toHistoryEntry);
 }
@@ -84,6 +85,25 @@ export async function deleteHistory(
 ): Promise<void> {
   if (!db) return;
   await db.runAsync("DELETE FROM searches WHERE id = ?", id);
+}
+
+export async function clearHistory(
+  db: SQLiteDatabase | null,
+): Promise<void> {
+  if (!db) return;
+  await initializeHistory(db);
+  await db.runAsync("DELETE FROM searches");
+
+  const tables = await db.getAllAsync<{ name: string }>(
+    "SELECT name FROM sqlite_master WHERE type = 'table'",
+  );
+  const names = new Set(tables.map((table) => table.name));
+  if (names.has("search_databases")) {
+    await db.runAsync("DELETE FROM search_databases");
+  }
+  if (names.has("databases")) {
+    await db.runAsync("DELETE FROM databases");
+  }
 }
 
 function toHistoryEntry(row: HistoryRow): HistoryEntry {

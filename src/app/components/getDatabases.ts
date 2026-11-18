@@ -107,7 +107,7 @@ export type RecordLookup = (
 ) => Promise<{ record: DatabaseRecord; fresh: boolean } | null>;
 
 export type GetDatabasesOptions = {
-  /** How many databases to keep. Default 15. */
+  /** How many databases to keep. Default 50. */
   maxDatabases?: number;
   /** Replace the network layer (tests). Default: the real fetch. */
   fetchFn?: FetchFn;
@@ -133,8 +133,8 @@ export type Candidate = {
 /** Base URL of the CURRENT re3data API (schema 4.0). */
 const RE3DATA_BASE = "https://www.re3data.org/api/v40";
 
-const DEFAULT_MAX_DATABASES = 15;
-const DEFAULT_DETAIL_CONCURRENCY = 4;
+const DEFAULT_MAX_DATABASES = 50;
+const DEFAULT_DETAIL_CONCURRENCY = 8;
 
 /** Give up on a re3data request after 12 seconds. */
 const REQUEST_TIMEOUT_MS = 12000;

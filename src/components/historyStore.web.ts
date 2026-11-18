@@ -28,6 +28,7 @@ export async function updateHistoryResults(
   _db: null,
   keywords: string[],
   hasResults: boolean,
+  suggestedQuestions?: string[],
 ): Promise<void> {
   const entries = await getHistory();
   const keywordKey = toKeywordKey(keywords);
@@ -35,7 +36,13 @@ export async function updateHistoryResults(
     STORAGE_KEY,
     JSON.stringify(
       entries.map((entry) =>
-        entry.keywordKey === keywordKey ? { ...entry, hasResults } : entry,
+        entry.keywordKey === keywordKey
+          ? {
+              ...entry,
+              hasResults,
+              ...(suggestedQuestions ? { suggestedQuestions } : {}),
+            }
+          : entry,
       ),
     ),
   );
@@ -55,6 +62,10 @@ export async function deleteHistory(_db: null, id: number): Promise<void> {
     STORAGE_KEY,
     JSON.stringify(entries.filter((entry) => entry.id !== id)),
   );
+}
+
+export async function clearHistory(_db: null): Promise<void> {
+  localStorage.removeItem(STORAGE_KEY);
 }
 
 function toKeywordKey(keywords: string[]): string {

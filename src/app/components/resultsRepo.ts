@@ -72,9 +72,10 @@ async function initializeResults(db: SQLiteDatabase): Promise<void> {
 async function fetchAndInsertDatabases(
   db: SQLiteDatabase,
   keywords: string[],
+  fetchedResults?: Awaited<ReturnType<typeof getDatabases>>,
 ): Promise<void> {
   const key = toKeywordKey(keywords);
-  const found = await getDatabases(keywords);
+  const found = fetchedResults ?? await getDatabases(keywords);
 
   // The links below need this search's row. IGNORE = it is already there
   // (the History screen may have added it a moment ago).
@@ -165,6 +166,36 @@ export async function getResultsForKeywords(
     rows = await queryResults(db, keywords); // 3. then read them back
   }
 
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    organization: r.organization ?? "",
+    url: r.url,
+    description: r.description ?? "",
+    isOpenSource: r.is_open_source === 1,
+    verifiedAt: r.verified_at ?? 0,
+    rank: r.rank,
+    relevance: r.relevance,
+  }));
+}
+
+/**
+ * Performs a live search again. The old search links are removed first so the
+ * fetch cannot be satisfied by the SQLite result cache.
+ */
+export async function refreshResultsForKeywords(
+  db: SQLiteDatabase,
+  keywords: string[],
+): Promise<DatabaseResult[]> {
+  await initializeResults(db);
+  const key = toKeywordKey(keywords);
+
+  const found = await getDatabases(keywords);
+  await db.runAsync("DELETE FROM search_databases WHERE search_id = (SELECT id FROM searches WHERE keyword_key = ?)", [key]);
+  await db.runAsync("DELETE FROM searches WHERE keyword_key = ?", [key]);
+  await fetchAndInsertDatabases(db, keywords, found);
+
+  const rows = await queryResults(db, keywords);
   return rows.map((r) => ({
     id: r.id,
     name: r.name,

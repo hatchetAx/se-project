@@ -1,10 +1,12 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import ResultsPage from "./components/ResultsPage";
 import type { SearchFilters } from "./components/SplashPage";
-import React from "react";
 import { useResultsDatabase } from "../components/resultsDatabase";
-import { recordHistory, updateHistoryResults } from "../components/historyStore";
+import {
+  recordHistory,
+  updateHistoryResults,
+} from "../components/historyStore";
 import type { DatabaseResult } from "./components/resultsRepo";
 
 export default function Results() {
@@ -26,8 +28,8 @@ export default function Results() {
     [source, verified],
   );
   const handleResultsLoaded = useCallback(
-    (results: DatabaseResult[]) => {
-      void updateHistoryResults(db, list, results.length > 0);
+    async (results: DatabaseResult[]) => {
+      await updateHistoryResults(db, list, results.length > 0);
     },
     [db, list],
   );
@@ -41,6 +43,15 @@ export default function Results() {
       keywords={list}
       onBack={() => router.back()}
       onEditKeywords={() => router.back()}
+      onAskAI={(results) =>
+        router.push({
+          pathname: "/ai-chat",
+          params: {
+            keywords: list.join(","),
+            databases: JSON.stringify(results),
+          },
+        })
+      }
       onResultsLoaded={handleResultsLoaded}
       filters={filters}
     />
