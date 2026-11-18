@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
 	ActivityIndicator,
 	Keyboard,
@@ -13,7 +13,6 @@ import {
 	View,
 } from 'react-native';
 import { COLORS, styles } from '../styles/splash-page.styles';
-import React from 'react';
 
 type Props = {
 	isLoading?: boolean;
@@ -33,26 +32,32 @@ export default function SplashPage({
 }: Props) {
 	const [keywords, setKeywords] = useState<string[]>([]);
 	const [draft, setDraft] = useState('');
-	const [keyboardVisible, setKeyboardVisible] = useState(false);
 	const [sourceFilter, setSourceFilter] =
 		useState<SearchFilters['source']>('all');
 	const [verifiedOnly, setVerifiedOnly] = useState(false);
 	const [filtersOpen, setFiltersOpen] = useState(false);
 	const inputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
+	const [loadingMessage, setLoadingMessage] = useState('Searching live databases...');
 
 	React.useEffect(() => {
-		const showSubscription = Keyboard.addListener('keyboardDidShow', () =>
-			setKeyboardVisible(true),
-		);
-		const hideSubscription = Keyboard.addListener('keyboardDidHide', () =>
-			setKeyboardVisible(false),
-		);
+		if (!isLoading) {
+			return;
+		}
 
+		const messages = [
+			'Searching live databases...',
+			'Checking sources and open access...',
+			'Ranking the best matches...',
+		];
+		let messageIndex = 0;
+		const messageTimer = setInterval(() => {
+			messageIndex = (messageIndex + 1) % messages.length;
+			setLoadingMessage(messages[messageIndex]);
+		}, 2200);
 		return () => {
-			showSubscription.remove();
-			hideSubscription.remove();
+			clearInterval(messageTimer);
 		};
-	}, []);
+	}, [isLoading]);
 
 	// Turns the current draft text into a chip (comma or Enter triggers this).
 	const commitDraft = (text: string = draft) => {
@@ -161,8 +166,6 @@ export default function SplashPage({
 											commitDraft();
 											Keyboard.dismiss();
 										}}
-										onFocus={() => setKeyboardVisible(true)}
-										onBlur={() => setKeyboardVisible(false)}
 										placeholder='Type a keyword'
 										placeholderTextColor={COLORS.muted}
 										returnKeyType='done'
@@ -290,7 +293,7 @@ export default function SplashPage({
 							)}
 						</View>
 						<Text style={styles.note}>
-							Order doesn't matter. Repeat searches load instantly from your
+							Order doesn&apos;t matter. Repeat searches load instantly from your
 							device.
 						</Text>
 
@@ -337,11 +340,16 @@ export default function SplashPage({
 							</Pressable>
 						</View>
 
-						<Text style={styles.hint}>
-							{isLoading
-								? 'Loading...'
-								: 'Type a keyword, then type a comma or Enter.'}
-						</Text>
+						{isLoading ? (
+							<View style={styles.loadingHint}>
+								<ActivityIndicator size='small' color={COLORS.navy} />
+								<Text style={styles.loadingHintText}>{loadingMessage}</Text>
+							</View>
+						) : (
+							<Text style={styles.hint}>
+								Type a keyword, then type a comma or Enter.
+							</Text>
+						)}
 					</View>
 
 					{/* Footer */}

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, SafeAreaView, Text, View } from 'react-native';
 import { useResultsDatabase } from '../components/resultsDatabase';
 import {
+	clearHistory,
 	deleteHistory,
 	getHistory,
 	type HistoryEntry,
@@ -20,12 +21,18 @@ export default function History() {
 	}, [db]);
 
 	useEffect(() => {
+		// eslint-disable-next-line react-hooks/set-state-in-effect
 		void loadHistory();
 	}, [loadHistory]);
 
 	const removeEntry = async (id: number) => {
 		await deleteHistory(db, id);
 		setEntries((current) => current.filter((entry) => entry.id !== id));
+	};
+
+	const clearAllHistory = async () => {
+		await clearHistory(db);
+		setEntries([]);
 	};
 
 	return (
@@ -50,6 +57,18 @@ export default function History() {
 						<Text style={styles.editText}>{editing ? 'Done' : 'Edit'}</Text>
 					</Pressable>
 				</View>
+
+				{editing && entries.length > 0 && (
+					<Pressable
+						style={styles.clearHistoryButton}
+						onPress={() => void clearAllHistory()}
+						accessibilityRole='button'
+						accessibilityLabel='Clear search history and cached searches'
+					>
+						<Ionicons name='trash-outline' size={16} color={COLORS.navy} />
+						<Text style={styles.clearHistoryText}>Clear History</Text>
+					</Pressable>
+				)}
 
 				{entries.length === 0 ? (
 					<View style={styles.empty}>

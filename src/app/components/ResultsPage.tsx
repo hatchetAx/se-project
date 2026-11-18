@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
     FlatList,
@@ -11,9 +11,8 @@ import {
 } from "react-native";
 import { RESULT_COLORS, styles } from "../styles/results-page.styles";
 import { COLORS } from "../styles/splash-page.styles";
-import { DatabaseResult, getResultsForKeywords } from "./resultsRepo";
+import { DatabaseResult, getResultsForKeywords, refreshResultsForKeywords } from "./resultsRepo";
 import { useResultsDatabase } from "../../components/resultsDatabase";
-import React from "react";
 import type { SearchFilters } from "./SplashPage";
 
 type Filter = "all" | "open" | "closed";
@@ -24,7 +23,7 @@ type Props = {
   fromCache?: boolean; // true when this set was loaded from SQLite instead of a fresh search
   onBack?: () => void;
   onEditKeywords?: () => void;
-  onAskAI?: () => void;
+  onAskAI?: (results: DatabaseResult[]) => void;
   onResultsLoaded?: (results: DatabaseResult[]) => void;
   filters?: SearchFilters;
 };
@@ -55,9 +54,12 @@ export default function ResultsPage({
   const db = useResultsDatabase();
   const [results, setResults] = useState<DatabaseResult[] | null>(null); // null = loading
   const [filter, setFilter] = useState<Filter>("all");
+  const [loadedFromCache, setLoadedFromCache] = useState(fromCache);
 
   useEffect(() => {
     let cancelled = false;
+    // Reset the loading state when the keyword set or database changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setResults(null);
     if (!db) {
       setResults([]);
@@ -66,10 +68,10 @@ export default function ResultsPage({
       };
     }
     getResultsForKeywords(db, keywords)
-      .then((rows) => {
-        if (!cancelled) {
-          setResults(rows);
-          onResultsLoaded?.(rows);
+    .then((rows) => {
+      if (!cancelled) {
+        setResults(rows);
+        onResultsLoaded?.(rows);
         }
       })
       .catch(() => {
@@ -101,6 +103,20 @@ export default function ResultsPage({
 
   const isEmpty = results !== null && results.length === 0;
 
+  const searchAgain = async () => {
+    if (!db) return;
+    setResults(null);
+    setLoadedFromCache(false);
+    try {
+      const rows = await refreshResultsForKeywords(db, keywords);
+      setResults(rows);
+      onResultsLoaded?.(rows);
+    } catch {
+      setResults([]);
+      onResultsLoaded?.([]);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
@@ -112,6 +128,7 @@ export default function ResultsPage({
               onPress={onBack}
               accessibilityRole="button"
               accessibilityLabel="Back"
+              hitSlop={12}
             >
               <Ionicons name="arrow-back" size={18} color={COLORS.navy} />
               <Text style={styles.backText}>Back</Text>
@@ -142,7 +159,7 @@ export default function ResultsPage({
         </View>
         <Pressable
           style={styles.searchAgainButton}
-          onPress={onEditKeywords}
+          onPress={() => void searchAgain()}
           accessibilityRole="button"
           accessibilityLabel="Search again"
         >
@@ -172,7 +189,9 @@ export default function ResultsPage({
               <Text style={styles.count}>{results.length} databases found</Text>
               <View style={styles.cacheBadge}>
                 <Text style={styles.cacheBadgeText}>
-                  {fromCache ? "Loaded from your device" : "Fresh search"}
+                  {loadedFromCache
+                    ? "Offline cache · saved on device"
+                    : "Fresh search · live data"}
                 </Text>
               </View>
             </View>
@@ -192,6 +211,7 @@ export default function ResultsPage({
                   style={[styles.pill, filter === key && styles.pillActive]}
                   accessibilityRole="button"
                   accessibilityState={{ selected: filter === key }}
+                  hitSlop={4}
                 >
                   <Text
                     style={[
@@ -221,6 +241,7 @@ export default function ResultsPage({
                   onPress={() => Linking.openURL(item.url)}
                   accessibilityRole="link"
                   accessibilityLabel={`${item.name}, open website`}
+                  accessibilityHint="Opens the database website"
                 >
                   <Text style={styles.cardTitle}>{item.name}</Text>
                   <View
@@ -248,11 +269,18 @@ export default function ResultsPage({
                     <View
                       style={[
                         styles.liveDot,
-                        { backgroundColor: RESULT_COLORS.live },
-                      ]}
-                    />
-                    <Text style={styles.statusText}>
-                      Live · verified {timeAgo(item.verifiedAt)}
+                          {
+                            backgroundColor:
+                              item.verifiedAt > 0
+                                ? RESULT_COLORS.live
+                                : COLORS.muted,
+                          },
+                        ]}
+                      />
+                      <Text style={styles.statusText}>
+                        {item.verifiedAt > 0
+                          ? `Live · verified ${timeAgo(item.verifiedAt)}`
+                          : "Offline cache · not live checked"}
                     </Text>
                   </View>
                   <Text style={styles.rankText}>
@@ -265,7 +293,7 @@ export default function ResultsPage({
             {/* Ask AI */}
             <Pressable
               style={styles.aiBar}
-              onPress={onAskAI}
+                    onPress={() => onAskAI?.(visible)}
               accessibilityRole="button"
               accessibilityLabel="Ask AI about these databases"
             >
